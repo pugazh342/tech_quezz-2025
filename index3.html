@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trace the Truth - HARD MODE</title>
+  <style>
+    body { font-family: 'Courier New', monospace; padding: 2rem; background: #121212; color: #e0e0e0; max-width: 1200px; margin: 0 auto; }
+    .question { margin-bottom: 1.5rem; padding: 1.5rem; background: #1e1e1e; border-radius: 8px; border-left: 4px solid #4caf50; }
+    label { font-weight: bold; display: block; margin-bottom: 0.8rem; color: #4caf50; }
+    input[type="text"] { width: 100%; padding: 0.8rem; font-size: 1rem; margin-top: 0.5rem; background: #2d2d2d; border: 1px solid #444; color: #fff; }
+    button { padding: 0.8rem 1.8rem; font-size: 1rem; margin: 1rem 0; cursor: pointer; background: #333; color: white; border: none; border-radius: 4px; transition: all 0.3s; }
+    button:hover { background: #4caf50; }
+    .result { margin-top: 2rem; font-size: 1.3rem; font-weight: bold; padding: 1rem; background: #1e1e1e; border-radius: 8px; }
+    .feedback { margin-top: 1.5rem; }
+    .feedback-item { padding: 1.2rem; background: #252525; border-radius: 8px; margin-bottom: 1.2rem; border-left: 4px solid; }
+    .correct { color: #4caf50; border-color: #4caf50; }
+    .incorrect { color: #f44336; border-color: #f44336; }
+    .question-image { max-width: 100%; height: auto; margin: 0.8rem 0; border: 1px solid #444; border-radius: 4px; }
+    .code-block { background: #252525; padding: 1.2rem; border-radius: 4px; overflow-x: auto; font-family: 'Courier New', monospace; color: #9cdcfe; border-left: 3px solid #4caf50; }
+    .controls { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
+    .progress-bar { width: 100%; background: #2d2d2d; border-radius: 4px; margin: 1.5rem 0; height: 10px; }
+    .progress { height: 100%; background: linear-gradient(90deg, #4caf50, #8bc34a); border-radius: 4px; width: 0%; transition: width 0.5s; }
+    .round-header { color: #4caf50; margin: 2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #333; }
+    .difficulty-tag { display: inline-block; padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 4px; margin-left: 0.5rem; }
+    .hard { background: #f44336; color: white; }
+    .very-hard { background: #9c27b0; color: white; }
+    .hint { color: #ff9800; font-style: italic; margin: 0.5rem 0; }
+    
+    /* Modal styles */
+    .modal { 
+      display: none;
+      position: fixed;
+      z-index: 100;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.8);
+    }
+    .modal-content {
+      background-color: #1e1e1e;
+      margin: 10% auto;
+      padding: 2rem;
+      border: 1px solid #4caf50;
+      border-radius: 8px;
+      width: 80%;
+      max-width: 600px;
+      animation: modalopen 0.5s;
+    }
+    @keyframes modalopen {
+      from { opacity: 0; transform: translateY(-50px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .close-btn {
+      color: #aaa;
+      float: right;
+      font-size: 1.5rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close-btn:hover {
+      color: #fff;
+    }
+    .modal-header {
+      color: #4caf50;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #333;
+      padding-bottom: 0.5rem;
+    }
+    .modal-body {
+      margin: 1rem 0;
+    }
+    .modal-footer {
+      text-align: right;
+    }
+    .modal-btn {
+      padding: 0.5rem 1rem;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .modal-btn:hover {
+      background: #45a049;
+    }
+    .score-display {
+      font-size: 1.8rem;
+      text-align: center;
+      margin: 1rem 0;
+      color: #4caf50;
+    }
+    .round-score {
+      margin: 0.5rem 0;
+      padding: 0.5rem;
+      background: #252525;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Trace the Truth - HARD MODE</h1>
+  
+  <div class="controls">
+    <button id="resetTest">Reset Test</button>
+  </div>
+  
+  <div class="progress-bar">
+    <div class="progress" id="progressBar"></div>
+  </div>
+  
+  <form id="quizForm"></form>
+
+  <div class="result" id="result"></div>
+  <div class="feedback" id="feedback"></div>
+
+  <!-- Modal for displaying results -->
+  <div id="resultModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn">&times;</span>
+      <div class="modal-header">Test Results</div>
+      <div class="modal-body">
+        <div class="score-display" id="modalScore"></div>
+        <div class="round-score" id="round1Score"></div>
+        <div class="round-score" id="round2Score"></div>
+        <p id="modalMessage"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn" id="viewDetailsBtn">View Details</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DOM elements
+    const form = document.getElementById("quizForm");
+    const resetTestBtn = document.getElementById("resetTest");
+    const resultDiv = document.getElementById("result");
+    const feedbackDiv = document.getElementById("feedback");
+    const progressBar = document.getElementById("progressBar");
+    const modal = document.getElementById("resultModal");
+    const modalScore = document.getElementById("modalScore");
+    const round1Score = document.getElementById("round1Score");
+    const round2Score = document.getElementById("round2Score");
+    const modalMessage = document.getElementById("modalMessage");
+    const viewDetailsBtn = document.getElementById("viewDetailsBtn");
+    const closeBtn = document.querySelector(".close-btn");
+
+    // Questions data (unencrypted)
+    let loadedQuestions = [
+      // ROUND 1: Decode the Layers (Hard)
+      {
+        "id": "r1q1",
+        "question": "1. Puzzle: Shadow Binary\n\nBinary: 01001101 01110110 01101000 01110100 00100000 01100100 01110010 01101111 01101111 01110100\n\nAfter decoding, reverse the result and find the meaningful phrase.",
+        "answer": "MvthrdoorT",
+        "difficulty": "hard"
+      },
+      {
+        "id": "r1q2",
+        "question": "2. CTF: Stego Level 2\n\nFile: hidden_flag.png (contains a base64 string hidden in metadata)\n\nDecode it, reverse it, then Base64 decode again to reveal the flag.",
+        "answer": "FLAG{truth_in_layers}",
+        "difficulty": "hard"
+      },
+      {
+        "id": "r1q3",
+        "question": "3. CTF: Web Exploit (Custom PHP )\n\n```php\nif ($_GET['auth'] === strrev(\"resu\") && $_GET['key'] === hash(\"md5\", \"true\")) {\n    echo \"Access granted\";\n} else {\n    echo \"Nope\";\n}\n```\n\nFind the GET parameters to access the system.",
+        "answer": "auth=user&key=b326b5062b2f0e69046810717534cb09",
+        "difficulty": "hard"
+      },
+      {
+        "id": "r1q4",
+        "question": "4. Coding: XOR Decipher\n\n```python\ndef check_truth(s):\n    return s[::-1].lower() == ''.join(chr(ord(c)^42) for c in \"kzzl*\")\nprint(check_truth(\"????\"))\n```\n\nWhat input returns True?",
+        "answer": "Truth",
+        "difficulty": "hard"
+      },
+      {
+        "id": "r1q5",
+        "question": "5. Puzzle: Nested Cipher\n\nCipher: `GZHU{gsv_xlfihv_xzm_hvzh}`\n\nHints: ROT13 → Atbash",
+        "answer": "FLAG{the_ciphers_are_weak}",
+        "difficulty": "hard"
+      },
+      {
+        "id": "r1q6",
+        "question": "6. Coding Challenge: Custom Constraint\n\nWrite a function that finds the second most frequent character in a string.\n\nCannot use: collections.Counter or built-in `max`.\n\nExample input: \"aabbbcc\"\n\nExpected output: \"a\"",
+        "answer": "a",
+        "difficulty": "hard"
+      },
+
+      // ROUND 2: The Final Decryption (Very Hard)
+      {
+        "id": "r2q1",
+        "question": "1. Puzzle: Hidden Sequence\n\nNumbers: 2, 6, 12, 20, 30, ?\n\nWhat's the next number? Explain the pattern.",
+        "answer": "42",
+        "difficulty": "very-hard"
+      },
+      {
+        "id": "r2q2",
+        "question": "2. CTF: Audio Flag\n\nFile: secret.wav\n\nUse Sonic Visualizer + SSTV decoder to view hidden flag in spectrogram.",
+        "answer": "FLAG{listen_to_reveal}",
+        "difficulty": "very-hard"
+      },
+      {
+        "id": "r2q3",
+        "question": "3. CTF: Forensics with Trap\n\nFile: truth.txt\n\nContains both a dummy flag and real one hidden in whitespace hex at the end.\n\nOnly one flag is valid.",
+        "answer": "FLAG{check_the_bytes}",
+        "difficulty": "very-hard"
+      },
+      {
+        "id": "r2q4",
+        "question": "4. Coding: Pattern Decryption\n\n```python\ndef decrypt(data):\n    return ''.join(chr(ord(c) ^ 13) for c in data[::-1])\n```\n\nWhat input gives output \"TRUTH\"?",
+        "answer": "HG\\x7f\\x7f",
+        "difficulty": "very-hard"
+      },
+      {
+        "id": "r2q5",
+        "question": "5. Real-World Sim: Log Intrusion Detector\n\nGiven a list of logs, write a function to detect if any 2 entries happened within 1 second of each other from different users.\n\nExample log format:\n[{'user': 'A', 'timestamp': 1616160000}, {'user': 'B', 'timestamp': 1616160001}]\n\nExpected output: True",
+        "answer": "True",
+        "difficulty": "very-hard"
+      }
+    ];
+    let answersMap = {};
+    
+    // Security: Block Inspect
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => {
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I','J'].includes(e.key)) || (e.ctrlKey && e.key === 'u')) {
+        e.preventDefault(); alert("Inspection disabled!");
+      }
+    });
+
+    // Prevent right-click and other inspect options
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      alert('Inspection disabled for security reasons');
+    });
+    
+    document.addEventListener('keydown', function(e) {
+      // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+      if (e.key === 'F12' || 
+          (e.ctrlKey && e.shiftKey && e.key === 'I') || 
+          (e.ctrlKey && e.shiftKey && e.key === 'J') ||
+          (e.ctrlKey && e.key === 'u')) {
+        e.preventDefault();
+        alert('Inspection disabled for security reasons');
+      }
+    });
+
+    // Additional security: disable text selection
+    document.addEventListener('selectstart', function(e) {
+      e.preventDefault();
+    });
+
+    // Additional security: disable dragging
+    document.addEventListener('dragstart', function(e) {
+      e.preventDefault();
+    });
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function formatQuestionText(text) {
+      // Handle code blocks
+      text = text.replace(/```(.+?)```/gs, '<div class="code-block">$1</div>');
+      // Handle inline code
+      text = text.replace(/`(.+?)`/g, '<code>$1</code>');
+      // Handle newlines
+      text = text.replace(/\n/g, '<br>');
+      return text;
+    }
+
+    function buildQuiz() {
+      form.innerHTML = "";
+      resultDiv.textContent = "";
+      feedbackDiv.innerHTML = "";
+      
+      // Add round headers
+      const round1Header = document.createElement("h2");
+      round1Header.className = "round-header";
+      round1Header.textContent = "ROUND 1: Decode the Layers (Hard)";
+      form.appendChild(round1Header);
+
+      // Shuffle questions within each round
+      const round1Questions = shuffle(loadedQuestions.filter(q => q.id.startsWith("r1")));
+      const round2Questions = shuffle(loadedQuestions.filter(q => q.id.startsWith("r2")));
+      
+      answersMap = Object.fromEntries(loadedQuestions.map(q => [q.id, q.answer.toLowerCase()]));
+
+      // Build Round 1 questions
+      round1Questions.forEach((q, index) => {
+        const div = document.createElement("div");
+        div.className = "question";
+        div.dataset.id = q.id;
+
+        const label = document.createElement("label");
+        label.innerHTML = `${index + 1}. ${formatQuestionText(q.question)}`;
+        
+        // Add difficulty tag
+        const difficultyTag = document.createElement("span");
+        difficultyTag.className = `difficulty-tag ${q.difficulty.replace(" ", "-")}`;
+        difficultyTag.textContent = q.difficulty === "hard" ? "HARD" : "VERY HARD";
+        label.appendChild(difficultyTag);
+
+        // Add hint for certain questions
+        if (q.id === "r1q1") {
+          const hint = document.createElement("div");
+          hint.className = "hint";
+          hint.textContent = "Hint: Binary to ASCII, then reverse";
+          label.appendChild(hint);
+        } else if (q.id === "r1q4") {
+          const hint = document.createElement("div");
+          hint.className = "hint";
+          hint.textContent = "Hint: Reverse the string and XOR with 42";
+          label.appendChild(hint);
+        }
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.name = q.id;
+        input.placeholder = "Enter your answer...";
+        input.required = true;
+
+        div.appendChild(label);
+        div.appendChild(input);
+        form.appendChild(div);
+      });
+
+      // Add round 2 header
+      const round2Header = document.createElement("h2");
+      round2Header.className = "round-header";
+      round2Header.textContent = "ROUND 2: The Final Decryption (Very Hard)";
+      form.appendChild(round2Header);
+
+      // Build Round 2 questions
+      round2Questions.forEach((q, index) => {
+        const div = document.createElement("div");
+        div.className = "question";
+        div.dataset.id = q.id;
+
+        const label = document.createElement("label");
+        label.innerHTML = `${index + 1}. ${formatQuestionText(q.question)}`;
+        
+        // Add difficulty tag
+        const difficultyTag = document.createElement("span");
+        difficultyTag.className = `difficulty-tag ${q.difficulty.replace(" ", "-")}`;
+        difficultyTag.textContent = q.difficulty === "hard" ? "HARD" : "VERY HARD";
+        label.appendChild(difficultyTag);
+
+        // Add hint for certain questions
+        if (q.id === "r2q1") {
+          const hint = document.createElement("div");
+          hint.className = "hint";
+          hint.textContent = "Hint: Look at the differences between numbers";
+          label.appendChild(hint);
+        } else if (q.id === "r2q4") {
+          const hint = document.createElement("div");
+          hint.className = "hint";
+          hint.textContent = "Hint: Reverse 'TRUTH' and XOR each character with 13";
+          label.appendChild(hint);
+        }
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.name = q.id;
+        input.placeholder = "Enter your answer...";
+        input.required = true;
+
+        div.appendChild(label);
+        div.appendChild(input);
+        form.appendChild(div);
+      });
+
+      const submitBtn = document.createElement("button");
+      submitBtn.type = "submit";
+      submitBtn.textContent = "Submit Answers";
+      form.appendChild(submitBtn);
+
+      resetTestBtn.disabled = false;
+      updateProgressBar(0);
+    }
+
+    function updateProgressBar(percentage) {
+      progressBar.style.width = `${percentage}%`;
+    }
+
+    function showResultsModal(totalScore, round1Correct, round2Correct, percentage) {
+      modalScore.textContent = `Score: ${totalScore}/${loadedQuestions.length} (${percentage}%)`;
+      round1Score.textContent = `Round 1 (Hard): ${round1Correct}/6`;
+      round2Score.textContent = `Round 2 (Very Hard): ${round2Correct}/5`;
+      
+      // Custom message based on performance
+      if (percentage >= 90) {
+        modalMessage.textContent = "Excellent work! You've mastered these challenges!";
+      } else if (percentage >= 70) {
+        modalMessage.textContent = "Great job! You're well on your way to becoming a security expert!";
+      } else if (percentage >= 50) {
+        modalMessage.textContent = "Good effort! Review the feedback to improve your skills.";
+      } else {
+        modalMessage.textContent = "Keep practicing! Cybersecurity takes time to master.";
+      }
+      
+      modal.style.display = "block";
+    }
+
+    // Close modal when clicking X
+    closeBtn.addEventListener("click", function() {
+      modal.style.display = "none";
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener("click", function(event) {
+      if (event.target === modal) {
+        modal.style.display = "none";
+      }
+    });
+
+    // View details button shows the feedback section
+    viewDetailsBtn.addEventListener("click", function() {
+      modal.style.display = "none";
+      feedbackDiv.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    resetTestBtn.addEventListener("click", function() {
+      if (confirm("Are you sure you want to reset the test? All progress will be lost.")) {
+        form.reset();
+        resultDiv.textContent = "";
+        feedbackDiv.innerHTML = "";
+        buildQuiz();
+      }
+    });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const formData = new FormData(form);
+      let totalScore = 0;
+      let round1Correct = 0;
+      let round2Correct = 0;
+      const total = loadedQuestions.length;
+      const feedbackMessages = [];
+
+      for (let [key, value] of formData.entries()) {
+        const userAnswer = value.trim().toLowerCase();
+        const correctAnswer = answersMap[key];
+        const question = loadedQuestions.find(q => q.id === key);
+        const questionText = question.question;
+
+        const feedbackItem = document.createElement("div");
+        feedbackItem.className = `feedback-item ${userAnswer === correctAnswer ? 'correct' : 'incorrect'}`;
+        
+        if (userAnswer === correctAnswer) {
+          totalScore++;
+          if (key.startsWith("r1")) round1Correct++;
+          if (key.startsWith("r2")) round2Correct++;
+          feedbackItem.innerHTML = `
+            <p><strong>Question ${key.substring(2)}:</strong> ✔ Correct!</p>
+            <p>${formatQuestionText(questionText)}</p>
+            <p>Your answer: <code>${value}</code></p>
+          `;
+        } else {
+          feedbackItem.innerHTML = `
+            <p><strong>Question ${key.substring(2)}:</strong> ✘ Incorrect</p>
+            <p>${formatQuestionText(questionText)}</p>
+            <p>Your answer: <code>${value}</code></p>
+            <p>Correct answer: <code>${correctAnswer}</code></p>
+          `;
+        }
+        
+        feedbackMessages.push(feedbackItem);
+      }
+
+      const percentage = Math.round((totalScore / total) * 100);
+      resultDiv.innerHTML = `
+        <p>Your score: ${totalScore} out of ${total} (${percentage}%)</p>
+        <p>Round 1 (Hard): ${round1Correct}/6</p>
+        <p>Round 2 (Very Hard): ${round2Correct}/5</p>
+      `;
+      
+      feedbackDiv.innerHTML = "<h3>Detailed Feedback:</h3>";
+      feedbackMessages.forEach(item => feedbackDiv.appendChild(item));
+      updateProgressBar(percentage);
+
+      // Show results in modal
+      showResultsModal(totalScore, round1Correct, round2Correct, percentage);
+    });
+
+    // Initialize the quiz when page loads
+    window.addEventListener('load', buildQuiz);
+  </script>
+</body>
+</html>
